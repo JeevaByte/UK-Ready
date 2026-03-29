@@ -1,0 +1,147 @@
+version: "3.9"
+
+# =============================================================================
+# UKReady — Local Development Environment
+# =============================================================================
+# Usage: docker compose up
+# All services start with a single command. The 'ingest' service runs once
+# to scrape and embed gov.uk documents into ChromaDB, then exits.
+#
+# Services:
+#   frontend  — Next.js app on http://localhost:3000
+#   backend   — FastAPI app on http://localhost:8000
+#   postgres  — PostgreSQL 15 on localhost:5432
+#   chroma    — ChromaDB vector store on localhost:8001
+#   ingest    — One-shot: scrapes gov.uk docs and embeds them into ChromaDB
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 15 — relational database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: ukready_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ukready}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ukready_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-ukready}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ukready} -d ${POSTGRES_DB:-ukready}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # ChromaDB — vector store for RAG document embeddings
+  # ---------------------------------------------------------------------------
+  chroma:
+    image: chromadb/chroma:0.5.23
+    container_name: ukready_chroma
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      CHROMA_SERVER_AUTH_CREDENTIALS_PROVIDER: ""
+      CHROMA_SERVER_AUTH_PROVIDER: ""
+      ALLOW_RESET: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/v1/heartbeat || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # Ingestion service — one-shot: scrape gov.uk docs and embed into ChromaDB
+  # Runs on first 'docker compose up', skips if already indexed
+  # ---------------------------------------------------------------------------
+  ingest:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ukready_ingest
+    command: python -m app.ingestion.embedder
+    env_file:
+      - .env.local
+    environment:
+      CHROMA_HOST: chroma
+      CHROMA_PORT: 8000
+    depends_on:
+      chroma:
+        condition: service_healthy
+    volumes:
+      - ingest_marker:/app/.ingest_state
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # FastAPI backend — the core API server
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ukready_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.local
+    environment:
+      CHROMA_HOST: chroma
+      CHROMA_PORT: 8000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ukready}:${POSTGRES_PASSWORD:-ukready_dev_password}@postgres:5432/${POSTGRES_DB:-ukready}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      chroma:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - ./backend:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ---------------------------------------------------------------------------
+  # Next.js frontend
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ukready_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      INTERNAL_API_URL: http://backend:8000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+
+volumes:
+  postgres_data:
+    driver: local
+  chroma_data:
+    driver: local
+  ingest_marker:
+    driver: local

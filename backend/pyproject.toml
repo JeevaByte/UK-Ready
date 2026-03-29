@@ -1,0 +1,100 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ukready-backend"
+version = "0.1.0"
+description = "UKReady backend API — visa-aware Q&A for UK skilled migrants"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    # Web framework
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.32.1",
+    # Pydantic v2 + settings
+    "pydantic==2.10.4",
+    "pydantic-settings==2.7.0",
+    # AI providers
+    "anthropic==0.40.0",
+    "boto3==1.35.86",
+    "openai==1.58.1",
+    # Vector store
+    "chromadb==0.5.23",
+    # Embeddings (local, no API key required for dev)
+    "sentence-transformers==3.3.1",
+    # Document ingestion
+    "requests==2.32.3",
+    "beautifulsoup4==4.12.3",
+    "lxml==5.3.0",
+    "tiktoken==0.8.0",
+    # Database
+    "asyncpg==0.30.0",
+    "sqlalchemy[asyncio]==2.0.36",
+    # Utilities
+    "python-dotenv==1.0.1",
+    "httpx==0.28.1",
+    "tenacity==9.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Linting & type checking
+    "ruff==0.8.6",
+    "mypy==1.14.1",
+    "types-requests==2.32.0.20241016",
+    "types-beautifulsoup4==4.12.0.20241020",
+    # Testing
+    "pytest==8.3.4",
+    "pytest-asyncio==0.25.0",
+    "pytest-cov==6.0.0",
+    "httpx==0.28.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+# =============================================================================
+# Ruff — linting & formatting
+# =============================================================================
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "N",   # pep8-naming
+]
+ignore = [
+    "E501",  # line length (handled by formatter)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+# =============================================================================
+# Mypy — type checking
+# =============================================================================
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+exclude = ["tests/"]
+
+# =============================================================================
+# Pytest
+# =============================================================================
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

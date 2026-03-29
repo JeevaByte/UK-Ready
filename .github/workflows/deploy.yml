@@ -1,0 +1,95 @@
+name: Deploy
+
+# Runs on merge to main only
+on:
+  push:
+    branches: [main]
+
+# Prevent concurrent deployments
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  # ===========================================================================
+  # TODO: Deploy frontend to Vercel
+  # ===========================================================================
+  # When ready:
+  # 1. Install Vercel CLI: npm i -g vercel
+  # 2. Link project: vercel link --yes
+  # 3. Set secrets in GitHub: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+  # 4. Replace this placeholder with:
+  #    - uses: amondnet/vercel-action@v25
+  #      with:
+  #        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+  #        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+  #        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+  #        vercel-args: '--prod'
+  # ===========================================================================
+  deploy-frontend:
+    name: Deploy Frontend (Vercel) — TODO
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "[TODO] Deploy to Vercel"
+        run: |
+          echo "Frontend deployment to Vercel not yet configured."
+          echo "See .github/workflows/deploy.yml for setup instructions."
+          echo "When configured, this job will deploy frontend/ to Vercel on every merge to main."
+
+  # ===========================================================================
+  # TODO: Build and push backend Docker image to ECR
+  # ===========================================================================
+  # When ready:
+  # 1. Create ECR repository in AWS console or via Terraform
+  # 2. Set secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+  # 3. Replace placeholder with:
+  #    - Configure AWS credentials
+  #    - Log in to ECR: aws ecr get-login-password | docker login
+  #    - Build: docker build -t ukready-backend ./backend
+  #    - Tag + push to ECR
+  #    - Update Lambda function code: aws lambda update-function-code
+  # ===========================================================================
+  deploy-backend:
+    name: Deploy Backend (Lambda) — TODO
+    runs-on: ubuntu-latest
+    needs: deploy-frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "[TODO] Build and deploy to AWS Lambda"
+        run: |
+          echo "Backend Lambda deployment not yet configured."
+          echo "See .github/workflows/deploy.yml for setup instructions."
+          echo "Requires: AWS credentials + ECR repository + Lambda function created via Terraform."
+
+  # ===========================================================================
+  # TODO: Apply Terraform changes
+  # ===========================================================================
+  # When ready:
+  # 1. Configure Terraform remote state (S3 + DynamoDB lock)
+  # 2. Set secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+  # 3. Set deploy_* flags to true in environments/dev/terraform.tfvars
+  # 4. Replace placeholder with:
+  #    - uses: hashicorp/setup-terraform@v3
+  #    - terraform init (with S3 backend config)
+  #    - terraform plan -out=tfplan
+  #    - terraform apply tfplan
+  # ===========================================================================
+  deploy-infrastructure:
+    name: Terraform Apply — TODO
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "[TODO] Apply Terraform changes"
+        run: |
+          echo "Terraform apply not yet configured."
+          echo "All deploy_* flags are currently false — no AWS resources will be created."
+          echo "See infrastructure/terraform/environments/dev/terraform.tfvars to enable resources."
+          echo "See .github/workflows/deploy.yml for full setup instructions."
