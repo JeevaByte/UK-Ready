@@ -29,8 +29,6 @@ I built this because I kept getting wrong or incomplete answers from generic AI 
 
 UKReady exists to make those answers clear, accurate, and visa-specific. It's not a side project — it's built for a real community of people making real life decisions.
 
-This project is also being submitted as evidence for a [UK Global Talent visa](https://www.gov.uk/global-talent) endorsement application, demonstrating technical leadership and open source contribution to the UK tech ecosystem.
-
 ---
 
 ## Features — MVP (Week 1–2)
