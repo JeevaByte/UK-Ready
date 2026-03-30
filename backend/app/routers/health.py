@@ -9,6 +9,7 @@ Used by Docker Compose health checks, load balancers, and monitoring.
 """
 
 import logging
+from typing import Literal
 
 from fastapi import APIRouter
 
@@ -29,7 +30,7 @@ async def health_check() -> HealthResponse:
     quickly identify which component is degraded.
     """
     settings = get_settings()
-    vector_store_status: str = "ok"
+    vector_store_status: Literal["ok", "degraded", "empty"] = "ok"
     documents_indexed = 0
 
     try:
@@ -43,11 +44,13 @@ async def health_check() -> HealthResponse:
         logger.warning("ChromaDB health check failed", exc_info=exc)
         vector_store_status = "degraded"
 
-    overall_status = "ok" if vector_store_status in ("ok", "empty") else "degraded"
+    overall_status: Literal["ok", "degraded"] = (
+        "ok" if vector_store_status in ("ok", "empty") else "degraded"
+    )
 
     return HealthResponse(
-        status=overall_status,  # type: ignore[arg-type]
-        vector_store=vector_store_status,  # type: ignore[arg-type]
+        status=overall_status,
+        vector_store=vector_store_status,
         ai_provider=settings.ai_provider,
         documents_indexed=documents_indexed,
     )

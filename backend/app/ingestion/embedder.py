@@ -24,6 +24,7 @@ import logging
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import tiktoken
 
@@ -90,7 +91,7 @@ def chunk_text(
     return chunks
 
 
-def _get_embedder() -> object:
+def _get_embedder() -> Any:
     """
     Load the sentence-transformer model for embedding.
 
@@ -116,7 +117,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         List of embedding vectors (one per input text).
     """
     model = _get_embedder()
-    embeddings = model.encode(texts, show_progress_bar=True, batch_size=32)  # type: ignore[union-attr]
+    embeddings = model.encode(texts, show_progress_bar=True, batch_size=32)
     return [emb.tolist() for emb in embeddings]
 
 

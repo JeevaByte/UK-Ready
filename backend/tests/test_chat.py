@@ -11,12 +11,10 @@ Tests use pre-defined mock responses that match the expected answer format.
 """
 
 import uuid
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
 
 from app.models.visa import VisaType
 from main import app

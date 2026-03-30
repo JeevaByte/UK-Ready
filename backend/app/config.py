@@ -107,7 +107,7 @@ class Settings(BaseSettings):
 
     @field_validator("anthropic_api_key")
     @classmethod
-    def validate_anthropic_key(cls, v: str, info: object) -> str:
+    def validate_anthropic_key(cls, v: str) -> str:
         """Warn (not error) if using anthropic provider without a key set."""
         # Full validation happens at request time, not at startup,
         # so local dev with no key still starts the server.

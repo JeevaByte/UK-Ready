@@ -17,11 +17,16 @@ a generic or wrong-visa answer.
 import logging
 import re
 import uuid
+from typing import Any, Literal, cast
 
 from app.models.chat import ChatResponse, Source
 from app.models.visa import VISA_CONTEXT, VisaType, get_visa_display_name
 from app.services.ai_provider import AIProvider, get_ai_provider
 from app.services.vector_store import SearchResult, VectorStore, get_vector_store
+
+# Module-level cache for the sentence-transformer model.
+# Loaded once on first request, then reused. Avoids reloading ~90MB on every call.
+_cached_embedder: Any = None
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +83,7 @@ def _build_context_documents(results: list[SearchResult]) -> str:
     return "\n".join(parts)
 
 
-def _parse_confidence(answer_text: str) -> tuple[str, str]:
+def _parse_confidence(answer_text: str) -> tuple[str, Literal["HIGH", "MEDIUM", "LOW"]]:
     """
     Extract confidence level from the model's response.
 
@@ -87,14 +92,14 @@ def _parse_confidence(answer_text: str) -> tuple[str, str]:
 
     Falls back to MEDIUM if no confidence marker is found.
     """
-    confidence = "MEDIUM"
+    confidence: Literal["HIGH", "MEDIUM", "LOW"] = "MEDIUM"
     clean_answer = answer_text.strip()
 
     # Look for "CONFIDENCE: HIGH/MEDIUM/LOW" (case-insensitive) anywhere in the response
     pattern = r"\bCONFIDENCE:\s*(HIGH|MEDIUM|LOW)\b"
     match = re.search(pattern, answer_text, re.IGNORECASE)
     if match:
-        confidence = match.group(1).upper()
+        confidence = cast(Literal["HIGH", "MEDIUM", "LOW"], match.group(1).upper())
         # Remove the confidence marker from the answer text
         clean_answer = re.sub(pattern, "", answer_text, flags=re.IGNORECASE).strip()
         # Clean up any trailing newlines left after removing the marker
@@ -126,7 +131,7 @@ def _extract_sources(results: list[SearchResult]) -> list[Source]:
     return sources
 
 
-def _get_embedder() -> object:
+def _get_embedder() -> Any:
     """
     Return a sentence-transformer embedder for query embedding.
 
@@ -134,13 +139,13 @@ def _get_embedder() -> object:
     all-MiniLM-L6-v2 is lightweight (22M params), fast, and accurate enough
     for this use case. Downloads on first use (~90MB), then cached locally.
     """
-    from sentence_transformers import SentenceTransformer
+    global _cached_embedder
+    if _cached_embedder is None:
+        from sentence_transformers import SentenceTransformer
 
-    # Using a module-level cache to avoid reloading the model on every request
-    if not hasattr(_get_embedder, "_model"):
         logger.info("Loading sentence-transformer model (first request may be slow)")
-        _get_embedder._model = SentenceTransformer("all-MiniLM-L6-v2")  # type: ignore[attr-defined]
-    return _get_embedder._model  # type: ignore[attr-defined]
+        _cached_embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    return _cached_embedder
 
 
 class RagPipeline:
@@ -203,7 +208,7 @@ class RagPipeline:
 
         # Step 1: Embed the user's question
         embedder = _get_embedder()
-        query_embedding: list[float] = embedder.encode(question).tolist()  # type: ignore[union-attr]
+        query_embedding: list[float] = embedder.encode(question).tolist()
 
         # Step 2: Retrieve relevant document chunks
         results = await self._vector_store.search(
@@ -243,7 +248,7 @@ class RagPipeline:
 
         return ChatResponse(
             answer=clean_answer,
-            confidence=confidence,  # type: ignore[arg-type]
+            confidence=confidence,
             sources=sources,
             conversation_id=conversation_id,
             disclaimer=DISCLAIMER,
